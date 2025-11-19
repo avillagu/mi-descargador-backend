@@ -1,41 +1,49 @@
 const express = require('express');
 const cors = require('cors');
 const youtubedl = require('youtube-dl-exec');
-const path = require('path');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// Endpoint para descargar
-app.get('/download', async (req, res) => {
+app.get('/download', (req, res) => {
     const url = req.query.url;
+    console.log("Recibida petición para:", url);
 
     if (!url) {
         return res.status(400).send('Falta la URL');
     }
 
+    // Le decimos al navegador que esto es un archivo para descargar
+    res.header('Content-Disposition', 'attachment; filename="video.mp4"');
+    res.header('Content-Type', 'video/mp4');
+
     try {
-        // Configuración de la descarga
-        res.header('Content-Disposition', 'attachment; filename="video.mp4"');
-        
-        // Ejecutar la descarga y enviar directamente al usuario (streaming)
-        // Esto evita guardar archivos en el servidor para hacerlo más simple
-        await youtubedl(url, {
+        // Usamos .exec para iniciar el proceso de inmediato (Streaming)
+        // Esto envía los datos "gota a gota" a tu navegador
+        const subprocess = youtubedl.exec(url, {
+            output: '-',
+            format: 'best[ext=mp4]', // Intentar MP4 directo
             noCheckCertificates: true,
             noWarnings: true,
             preferFreeFormats: true,
-            addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-            output: '-', // Salida directa al flujo de datos
-            format: 'mp4'
-        }, { stdio: ['ignore', 'pipe', 'ignore'] }).then(output => {
-            output.stdout.pipe(res);
+            addHeader: ['referer:youtube.com', 'user-agent:googlebot']
+        }, { 
+            stdio: ['ignore', 'pipe', 'ignore'] // Conectar tuberías
+        });
+
+        // Conectar la salida del video directo a la respuesta del usuario
+        subprocess.stdout.pipe(res);
+
+        // Manejo de errores básico
+        subprocess.stdout.on('error', (err) => {
+            console.error('Error en el stream:', err);
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).send('Error al procesar el video');
+        console.error('Error general:', error);
+        if (!res.headersSent) {
+            res.status(500).send('Error al procesar el video');
+        }
     }
 });
 
