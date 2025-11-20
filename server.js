@@ -5,6 +5,17 @@ const { spawn } = require('child_process'); // <--- IMPORTANTE: Usamos esto, no 
 const app = express();
 app.use(cors());
 
+// ==========================================
+// 🟢 NUEVA RUTA PARA UPTIMEROBOT
+// Esto evita que el robot reciba error 404
+// ==========================================
+app.get('/', (req, res) => {
+    res.status(200).send('¡Hola! El servidor está activo y funcionando. 🤖✅');
+});
+
+// ==========================================
+// 📺 RUTA DE DESCARGA
+// ==========================================
 app.get('/download', (req, res) => {
     const url = req.query.url;
     console.log("1. Recibida petición para:", url);
